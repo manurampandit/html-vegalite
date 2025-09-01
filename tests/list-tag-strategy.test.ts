@@ -1,4 +1,5 @@
 import { ListTagStrategy } from '../src/strategies/implementations/list-tag-strategy';
+import { ListHelpers } from '../src/helpers/composite';
 import { TextStyle } from '../src/types';
 import { HTMLParser } from '../src/parser';
 import { HTMLToVegaLite } from '../src/index';
@@ -59,40 +60,40 @@ describe('ListTagStrategy', () => {
   describe('List Context Management', () => {
     it('should track unordered list context', () => {
       strategy.applyStyle({} as TextStyle, '', 'ul');
-      const context = ListTagStrategy.getListContext();
+      const context = ListHelpers.getListContext();
       expect(context.stack).toEqual(['ul']);
       expect(context.counters.size).toBe(0);
     });
 
     it('should track ordered list context with counter', () => {
       strategy.applyStyle({} as TextStyle, '', 'ol');
-      const context = ListTagStrategy.getListContext();
+      const context = ListHelpers.getListContext();
       expect(context.stack).toEqual(['ol']);
       expect(context.counters.size).toBe(1);
-      expect(context.counters.get('ol-1')).toBe(0);
+      expect(context.counters.get('list-ol-1')).toBe(0);
     });
 
     it('should handle nested lists', () => {
       strategy.applyStyle({} as TextStyle, '', 'ul');
       strategy.applyStyle({} as TextStyle, '', 'ol');
       
-      const context = ListTagStrategy.getListContext();
+      const context = ListHelpers.getListContext();
       expect(context.stack).toEqual(['ul', 'ol']);
       expect(context.counters.size).toBe(1);
-      expect(context.counters.get('ol-2')).toBe(0);
+      expect(context.counters.get('list-ol-2')).toBe(0);
     });
 
     it('should clean up context when closing lists', () => {
       strategy.applyStyle({} as TextStyle, '', 'ul');
       strategy.applyStyle({} as TextStyle, '', 'ol');
       
-      ListTagStrategy.handleClosingTag('ol');
-      let context = ListTagStrategy.getListContext();
+      strategy.handleClosingTag('ol');
+      let context = ListHelpers.getListContext();
       expect(context.stack).toEqual(['ul']);
       expect(context.counters.size).toBe(0);
 
-      ListTagStrategy.handleClosingTag('ul');
-      context = ListTagStrategy.getListContext();
+      strategy.handleClosingTag('ul');
+      context = ListHelpers.getListContext();
       expect(context.stack).toEqual([]);
     });
 
@@ -101,7 +102,7 @@ describe('ListTagStrategy', () => {
       strategy.applyStyle({} as TextStyle, '', 'ol');
       
       ListTagStrategy.resetListState();
-      const context = ListTagStrategy.getListContext();
+      const context = ListHelpers.getListContext();
       expect(context.stack).toEqual([]);
       expect(context.counters.size).toBe(0);
     });
@@ -110,7 +111,7 @@ describe('ListTagStrategy', () => {
   describe('List Item Prefixes', () => {
     it('should return bullet prefix for unordered list items', () => {
       strategy.applyStyle({} as TextStyle, '', 'ul');
-      const prefix = ListTagStrategy.getListItemPrefix('li');
+      const prefix = ListHelpers.getListItemPrefix('li');
       expect(prefix).toBe('• ');
     });
 
@@ -119,37 +120,37 @@ describe('ListTagStrategy', () => {
       
       // Simulate processing multiple list items
       strategy.applyStyle({} as TextStyle, '', 'li');
-      let prefix = ListTagStrategy.getListItemPrefix('li');
+      let prefix = ListHelpers.getListItemPrefix('li');
       expect(prefix).toBe('1. ');
 
       strategy.applyStyle({} as TextStyle, '', 'li');
-      prefix = ListTagStrategy.getListItemPrefix('li');
+      prefix = ListHelpers.getListItemPrefix('li');
       expect(prefix).toBe('2. ');
 
       strategy.applyStyle({} as TextStyle, '', 'li');
-      prefix = ListTagStrategy.getListItemPrefix('li');
+      prefix = ListHelpers.getListItemPrefix('li');
       expect(prefix).toBe('3. ');
     });
 
     it('should return empty prefix when not in a list', () => {
-      const prefix = ListTagStrategy.getListItemPrefix('li');
+      const prefix = ListHelpers.getListItemPrefix('li');
       expect(prefix).toBe('');
     });
 
     it('should handle nested list prefixes correctly', () => {
       // Outer unordered list
       strategy.applyStyle({} as TextStyle, '', 'ul');
-      let prefix = ListTagStrategy.getListItemPrefix('li');
+      let prefix = ListHelpers.getListItemPrefix('li');
       expect(prefix).toBe('• ');
 
       // Inner ordered list
       strategy.applyStyle({} as TextStyle, '', 'ol');
-      prefix = ListTagStrategy.getListItemPrefix('li');
+      prefix = ListHelpers.getListItemPrefix('li');
       expect(prefix).toBe('1. ');
 
       // Close inner list, back to outer
-      ListTagStrategy.handleClosingTag('ol');
-      prefix = ListTagStrategy.getListItemPrefix('li');
+      strategy.handleClosingTag('ol');
+      prefix = ListHelpers.getListItemPrefix('li');
       expect(prefix).toBe('• ');
     });
   });
@@ -223,13 +224,13 @@ describe('ListTagStrategy Layout Tests', () => {
       `;
       const spec = converter.convert(html);
       
-      // Find outer and inner list items
+      // Find outer and inner list items (text content, not prefixes)
       const outerItemData = spec.layer.flatMap(layer => 
-        layer.data.values.filter(item => item.text.includes('• Outer item'))
+        layer.data.values.filter(item => item.text === 'Outer item')
       )[0];
       
       const innerItemData = spec.layer.flatMap(layer => 
-        layer.data.values.filter(item => item.text.includes('• Inner item'))
+        layer.data.values.filter(item => item.text === 'Inner item')
       )[0];
       
       expect(outerItemData).toBeDefined();
@@ -254,11 +255,11 @@ describe('ListTagStrategy Layout Tests', () => {
       const spec = converter.convert(html);
       
       const bulletItemData = spec.layer.flatMap(layer => 
-        layer.data.values.filter(item => item.text.includes('• Bullet item'))
+        layer.data.values.filter(item => item.text === 'Bullet item')
       )[0];
       
       const numberedItemData = spec.layer.flatMap(layer => 
-        layer.data.values.filter(item => item.text.includes('1. Numbered item'))
+        layer.data.values.filter(item => item.text === 'Numbered item')
       )[0];
       
       expect(bulletItemData).toBeDefined();
@@ -294,7 +295,7 @@ describe('ListTagStrategy Layout Tests', () => {
       const spec = converter.convert(html);
       
       const listItems = spec.layer.flatMap(layer => 
-        layer.data.values.filter(item => item.text.includes('• Item'))
+        layer.data.values.filter(item => item.text.startsWith('Item ') && item.text.match(/Item \d/))
       ).sort((a, b) => a.y - b.y); // Sort by y position
       
       expect(listItems.length).toBe(3);
@@ -374,7 +375,7 @@ describe('ListTagStrategy Integration Tests', () => {
       expect(textSegments.some(s => s.text === 'Outer item 2')).toBe(true);
       expect(textSegments.some(s => s.text === 'Inner item 1')).toBe(true);
       expect(textSegments.some(s => s.text === 'Inner item 2')).toBe(true);
-      expect(textSegments.some(s => s.text.includes('• Outer item 3'))).toBe(true);
+      expect(textSegments.some(s => s.text === 'Outer item 3')).toBe(true);
     });
 
     it('should handle list items with styled content', () => {

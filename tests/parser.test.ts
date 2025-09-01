@@ -193,7 +193,14 @@ describe('HTMLParser', () => {
       const customStrategy: TagStrategy = {
         getTagNames: () => ['custom'],
         applyStyle: (style) => ({ ...style, color: '#ff0000' }),
-        validateAttributes: () => ({ isValid: true, errors: [] })
+        validateAttributes: () => ({ isValid: true, errors: [] }),
+        parse: (context) => ({
+          newSegments: [],
+          updatedStyle: { ...context.currentStyle, color: '#ff0000' },
+          pushStyleToStack: !context.isClosingTag,
+          popFromStyleStack: context.isClosingTag,
+          errors: []
+        })
       };
       
       parser.registerTagStrategy(customStrategy);

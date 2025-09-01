@@ -1,4 +1,5 @@
 import { TextSegment } from './types';
+import { TextHelpers } from './helpers/text';
 
 /**
  * Intelligent HTML spacing analyzer that preserves original spacing context
@@ -12,13 +13,13 @@ export class SpacingAnalyzer {
    */
   public static analyzeAndAssignSpacing(segments: TextSegment[], originalHtml: string): TextSegment[] {
     // First, normalize whitespace in segments (trim leading/trailing spaces)
-    const normalizedSegments = this.normalizeSegmentWhitespace(segments);
+    const normalizedSegments = TextHelpers.normalizeSegmentWhitespace(segments);
     if (normalizedSegments.length <= 1) {
       return normalizedSegments; // No spacing needed for single or no segments
     }
 
     // Clean HTML for analysis (remove excessive whitespace but preserve structure)
-    const cleanedHtml = originalHtml.replace(/\s+/g, ' ').trim();
+    const cleanedHtml = TextHelpers.cleanHtmlWhitespace(originalHtml);
     
     // Create a mapping of segments to their positions in the HTML structure
     const segmentPositions = this.mapSegmentsToHtmlPositions(normalizedSegments, cleanedHtml);
@@ -124,8 +125,8 @@ export class SpacingAnalyzer {
     if (!currentText || !nextText) return false;
 
     // Create regex patterns to find the segments in HTML
-    const currentPattern = this.escapeRegexSpecialChars(currentText);
-    const nextPattern = this.escapeRegexSpecialChars(nextText);
+    const currentPattern = TextHelpers.escapeRegexSpecialChars(currentText);
+    const nextPattern = TextHelpers.escapeRegexSpecialChars(nextText);
     
     // Look for pattern: currentText...whitespace...nextText
     const combinedPattern = new RegExp(
@@ -211,62 +212,5 @@ export class SpacingAnalyzer {
            (segment.fontSize && segment.fontSize !== 14));
   }
 
-  /**
-   * Escape special regex characters in text
-   */
-  private static escapeRegexSpecialChars(text: string): string {
-    return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  }
 
-  /**
-   * Normalize whitespace in segments by trimming leading/trailing spaces
-   * and using that information to infer spacing between segments
-   */
-  private static normalizeSegmentWhitespace(segments: TextSegment[]): TextSegment[] {
-    const normalized: TextSegment[] = [];
-    
-    for (let i = 0; i < segments.length; i++) {
-      const segment = segments[i];
-      
-      if (!segment) continue;
-      
-      // Skip newlines - handle them as-is
-      if (segment.text === '\n') {
-        normalized.push({ ...segment });
-        continue;
-      }
-      
-      // Trim whitespace and create normalized segment
-      const trimmedText = segment.text.trim();
-      
-      // Skip empty segments after trimming
-      if (!trimmedText) {
-        continue;
-      }
-      
-      normalized.push({
-        ...segment,
-        text: trimmedText
-      });
-    }
-    
-    return normalized;
-  }
-
-  /**
-   * Debug method to analyze spacing decisions
-   */
-  public static debugSpacingAnalysis(segments: TextSegment[], originalHtml: string): void {
-    console.log('\n=== Spacing Analysis Debug ===');
-    console.log('Original HTML:', originalHtml);
-    
-    const analyzed = this.analyzeAndAssignSpacing(segments, originalHtml);
-    
-    analyzed.forEach((segment, index) => {
-      if (segment.text === '\n') return;
-      
-      const spaceAfter = segment.hasSpaceAfter ? '→SPACE' : '→NOSPACE';
-      console.log(`${index + 1}. "${segment.text}" ${spaceAfter} (${segment.spacingContext})`);
-    });
-  }
 }

@@ -19,6 +19,7 @@ import {
   createMinimalTagStrategyRegistry
 } from '../src/strategies/index';
 
+import { ListHelpers } from '../src/helpers/composite';
 import { TextStyle } from '../src/types';
 
 describe('Tag Strategies', () => {
@@ -467,23 +468,23 @@ describe('Tag Strategies', () => {
 
     it('should track list context correctly', () => {
       strategy.applyStyle({} as TextStyle, '', 'ul');
-      let context = ListTagStrategy.getListContext();
+      let context = ListHelpers.getListContext();
       expect(context.stack).toEqual(['ul']);
 
       strategy.applyStyle({} as TextStyle, '', 'ol');
-      context = ListTagStrategy.getListContext();
+      context = ListHelpers.getListContext();
       expect(context.stack).toEqual(['ul', 'ol']);
     });
 
     it('should generate correct prefixes', () => {
       // Unordered list
       strategy.applyStyle({} as TextStyle, '', 'ul');
-      expect(ListTagStrategy.getListItemPrefix('li')).toBe('• ');
+      expect(ListHelpers.getListItemPrefix('li')).toBe('• ');
 
       // Reset and test ordered list
       ListTagStrategy.resetListState();
       strategy.applyStyle({} as TextStyle, '', 'ol');
-      expect(ListTagStrategy.getListItemPrefix('li')).toBe('1. ');
+      expect(ListHelpers.getListItemPrefix('li')).toBe('1. ');
     });
 
     it('should validate attributes correctly', () => {

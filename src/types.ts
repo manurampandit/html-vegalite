@@ -222,3 +222,41 @@ export interface ParseResult {
   segments: TextSegment[];
   errors?: string[];
 }
+
+/**
+ * Context information passed to tag strategies during parsing
+ */
+export interface ParseContext {
+  /** Current text style */
+  currentStyle: TextStyle;
+  /** Style stack for nested tags */
+  styleStack: TextStyle[];
+  /** Segments parsed so far */
+  segments: TextSegment[];
+  /** Tag attributes string */
+  attributes: string;
+  /** Tag name */
+  tagName: string;
+  /** Whether this is a closing tag */
+  isClosingTag: boolean;
+  /** Remaining content parts after this tag */
+  remainingParts: string[];
+  /** Current index in parts array */
+  currentIndex: number;
+}
+
+/**
+ * Output from tag strategy parsing
+ */
+export interface ParsedOutput {
+  /** New segments to add */
+  newSegments: TextSegment[];
+  /** Updated style for style stack */
+  updatedStyle: TextStyle;
+  /** Whether to push this style onto the stack */
+  pushStyleToStack: boolean;
+  /** Whether to pop from style stack (for closing tags) */
+  popFromStyleStack: boolean;
+  /** Any validation errors */
+  errors: string[];
+}

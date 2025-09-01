@@ -1,7 +1,8 @@
-import { TextStyle, TextSegment, ParseResult } from './types';
+import { TextStyle, TextSegment, ParseResult, ParseContext } from './types';
 import { TagStrategy, TagStrategyRegistry, createDefaultTagStrategyRegistry } from './strategies/index';
 import { ListTagStrategy } from './strategies/implementations/list-tag-strategy';
 import { SpacingAnalyzer } from './spacing-analyzer';
+import { StyleHelpers } from './helpers/style';
 
 /**
  * HTML Parser with extensible tag strategy system
@@ -54,8 +55,6 @@ export class HTMLParser {
       
       let currentStyle: TextStyle = this.getDefaultStyle();
       const styleStack: TextStyle[] = [{ ...currentStyle }];
-      let isInListItem = false;
-      let listItemPrefixAdded = false;
       
       for (let i = 0; i < parts.length; i++) {
         const part = parts[i];
@@ -68,42 +67,38 @@ export class HTMLParser {
             // Get the closing tag name
             const closingTagName = parts[i + 1]?.toLowerCase();
             
-            // Handle list tag cleanup
-            if (closingTagName && (closingTagName === 'ul' || closingTagName === 'ol')) {
-              ListTagStrategy.handleClosingTag(closingTagName);
-            }
-            
-            // Reset list item state when closing li tag
-            if (closingTagName === 'li') {
-              isInListItem = false;
-              listItemPrefixAdded = false;
-            }
-            
-            // Add line breaks after closing block-level tags
             if (closingTagName) {
-              const isBlockElement = ['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol'].includes(closingTagName);
+              const strategy = this.strategyRegistry.getStrategy(closingTagName);
               
-              if (isBlockElement) {
-                // Check if there's more meaningful content coming after this element
-                const remainingContent = parts.slice(i + 2).join('');
-                const hasMoreContent = remainingContent.trim().length > 0;
+              if (strategy) {
+                // Create parse context for closing tag
+                const context: ParseContext = {
+                  currentStyle,
+                  styleStack,
+                  segments,
+                  attributes: '',
+                  tagName: closingTagName,
+                  isClosingTag: true,
+                  remainingParts: parts.slice(i + 2),
+                  currentIndex: i
+                };
                 
-                if (hasMoreContent) {
-                  segments.push({
-                    text: '\n',
-                    ...currentStyle
-                  });
+                // Use strategy to handle closing tag
+                const result = strategy.parse(context);
+                
+                // Apply strategy results
+                segments.push(...result.newSegments);
+                errors.push(...result.errors);
+                
+                if (result.popFromStyleStack && styleStack.length > 1) {
+                  styleStack.pop();
+                  const prevStyle = styleStack[styleStack.length - 1];
+                  if (prevStyle) {
+                    currentStyle = { ...prevStyle };
+                  }
                 }
-              }
-            }
-            
-            // Pop style stack for closing tag
-            if (styleStack.length > 1) {
-              styleStack.pop();
-              const prevStyle = styleStack[styleStack.length - 1];
-              if (prevStyle) {
-                // Restore all properties from previous style
-                currentStyle = { ...prevStyle };
+              } else {
+                errors.push(`Unsupported closing tag: ${closingTagName}`);
               }
             }
           }
@@ -115,84 +110,28 @@ export class HTMLParser {
             const strategy = this.strategyRegistry.getStrategy(tagName);
             
             if (strategy) {
-              // Validate attributes if strategy supports it
-              if (strategy.validateAttributes) {
-                const validation = strategy.validateAttributes(attributes);
-                if (!validation.isValid) {
-                  errors.push(...validation.errors);
-                }
-              }
+              // Create parse context for opening tag
+              const context: ParseContext = {
+                currentStyle,
+                styleStack,
+                segments,
+                attributes,
+                tagName,
+                isClosingTag: false,
+                remainingParts: parts.slice(i + 4),
+                currentIndex: i
+              };
               
-              // Check if this is a line break strategy
-              if (strategy.isLineBreak && strategy.isLineBreak()) {
-                // Special handling for list items - they need line breaks but also track state
-                if (tagName === 'li') {
-                  isInListItem = true;
-                  listItemPrefixAdded = false;
-                  
-                  // Add line break before list item if needed
-                  if (this.needsLineBreak(segments)) {
-                    segments.push({
-                      text: '\n',
-                      ...currentStyle
-                    });
-                  }
-                  
-                  // Apply styling for list item
-                  const newStyle = strategy.applyStyle(currentStyle, attributes, tagName);
-                  styleStack.push(newStyle);
-                  currentStyle = newStyle;
-                } else if (tagName === 'ul' || tagName === 'ol') {
-                  // Add line break before list container if needed
-                  if (this.needsLineBreak(segments)) {
-                    segments.push({
-                      text: '\n',
-                      ...currentStyle
-                    });
-                  }
-                  
-                  // Apply styling for list container
-                  const newStyle = strategy.applyStyle(currentStyle, attributes, tagName);
-                  styleStack.push(newStyle);
-                  currentStyle = newStyle;
-                } else if (tagName === 'p') {
-                  // Add line break before paragraph if needed
-                  if (this.needsLineBreak(segments)) {
-                    segments.push({
-                      text: '\n',
-                      ...currentStyle
-                    });
-                  }
-                  
-                  // Apply styling for paragraph
-                  const newStyle = strategy.applyStyle(currentStyle, attributes, tagName);
-                  styleStack.push(newStyle);
-                  currentStyle = newStyle;
-                } else if (['h1', 'h2', 'h3', 'h4', 'h5', 'h6'].includes(tagName)) {
-                  // Add line break before heading if needed
-                  if (this.needsLineBreak(segments)) {
-                    segments.push({
-                      text: '\n',
-                      ...currentStyle
-                    });
-                  }
-                  
-                  // Apply styling for heading
-                  const newStyle = strategy.applyStyle(currentStyle, attributes, tagName);
-                  styleStack.push(newStyle);
-                  currentStyle = newStyle;
-                } else {
-                  // Regular line break elements (like <br>)
-                  segments.push({
-                    text: '\n',
-                    ...currentStyle
-                  });
-                }
-              } else {
-                // Apply styling using strategy
-                const newStyle = strategy.applyStyle(currentStyle, attributes, tagName);
-                styleStack.push(newStyle);
-                currentStyle = newStyle;
+              // Use strategy to handle opening tag
+              const result = strategy.parse(context);
+              
+              // Apply strategy results
+              segments.push(...result.newSegments);
+              errors.push(...result.errors);
+              
+              if (result.pushStyleToStack) {
+                styleStack.push(result.updatedStyle);
+                currentStyle = result.updatedStyle;
               }
             } else {
               errors.push(`Unsupported tag: ${tagName}`);
@@ -201,48 +140,23 @@ export class HTMLParser {
           }
         } else if (i % 4 === 0) { // Text content
           if (part.trim()) {
-            let textContent = part;
-            
-            // Add list item prefix if we're in a list item and haven't added it yet
-            if (isInListItem && !listItemPrefixAdded) {
-              const prefix = ListTagStrategy.getListItemPrefix('li');
-              
-              // Create separate segment for prefix with clean list item style (no inherited decorations)
-              const prefixStyle = { ...currentStyle };
-              prefixStyle.textDecoration = 'none'; // No text decoration for prefix
-              prefixStyle.fontWeight = 'normal'; // No bold/font weight inheritance
-              prefixStyle.fontStyle = 'normal'; // No italic inheritance
-              prefixStyle.color = '#000000'; // Reset color to default black
-              
-              segments.push({
-                text: prefix,
-                ...prefixStyle,
-                hasSpaceAfter: true, // Always add consistent space after prefix
-                spacingContext: 'list-prefix' // Special context for consistent spacing
-              });
-              
-              // Trim the content since prefix handles the spacing
-              textContent = textContent.trimStart();
-              listItemPrefixAdded = true;
-            }
-            
-            // Create segment for the actual content with current style (including any text decoration)
+            // Create segment for text content with current style
             segments.push({
-              text: textContent,
+              text: part,
               ...currentStyle
             });
           }
         }
       }
       
-              // Apply intelligent spacing analysis to segments
-        const spacedSegments = SpacingAnalyzer.analyzeAndAssignSpacing(segments, html);
-        
-        const result: ParseResult = { 
-          segments: spacedSegments,
-          errors: errors.length > 0 ? errors : []
-        };
-        return result;
+      // Apply intelligent spacing analysis to segments
+      const spacedSegments = SpacingAnalyzer.analyzeAndAssignSpacing(segments, html);
+      
+      const result: ParseResult = { 
+        segments: spacedSegments,
+        errors: errors.length > 0 ? errors : []
+      };
+      return result;
       
     } catch (error) {
       return {
@@ -287,13 +201,7 @@ export class HTMLParser {
    * Get default text style
    */
   private getDefaultStyle(): TextStyle {
-    return {
-      fontWeight: 'normal',
-      fontStyle: 'normal',
-      color: '#000000',
-      textDecoration: 'none'
-      // fontSize is optional and will be set by strategies when needed
-    };
+    return StyleHelpers.getDefaultStyle();
   }
 
   /**
