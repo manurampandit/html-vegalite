@@ -27,15 +27,7 @@ export const colorMap: Record<string, string> = {
     // TODO Add more colors as needed
   };
 
-// Appropriate spacing below headings by tag (Found out by trial and error)
-export const headingSpacingMap: Record<string, number> = {
-  'h1': 18,
-  'h2': 12,
-  'h3': 6,
-  'h4': 5,
-  'h5': 4,
-  'h6': 3
-};
+
 
 // Font style/weight/decoration constants
 export const FONT_WEIGHT = {

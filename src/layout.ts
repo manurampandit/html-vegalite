@@ -1,5 +1,5 @@
 import { TextStyle, TextSegment, PositionedTextSegment, TextMeasurement, HTMLToVegaLiteOptions } from './types';
-import { colorMap, inverseHeadingSizes, headingSpacingMap, FONT_STYLE, FONT_WEIGHT, TEXT_DECORATION } from './constants';
+import { colorMap, inverseHeadingSizes, headingSizes, FONT_STYLE, FONT_WEIGHT, TEXT_DECORATION } from './constants';
 import { StyleHelpers } from './helpers/style';
 
 /**
@@ -68,9 +68,10 @@ export class TextLayoutEngine {
   /**
    * Get additional spacing below heading based on heading level
    * H1 gets the most spacing, H6 gets the least
+   * Uses half of the heading font size as spacing
    */
   private getHeadingSpacing(headingType: string): number {
-    return headingSpacingMap[headingType] || 0;
+    return (headingSizes[headingType] || 0) / 2;
   }
 
   /**
