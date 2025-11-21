@@ -21,7 +21,8 @@ import {
   CodeTagStrategy,
   SmallTextTagStrategy,
   HighlightTagStrategy,
-  StrikethroughTagStrategy
+  StrikethroughTagStrategy,
+  ListTagStrategy
 } from './implementations/index';
 
 /**
@@ -47,6 +48,7 @@ export function createDefaultTagStrategyRegistry(): TagStrategyRegistry {
   registry.registerStrategy(new SmallTextTagStrategy());
   registry.registerStrategy(new HighlightTagStrategy());
   registry.registerStrategy(new StrikethroughTagStrategy());
+  registry.registerStrategy(new ListTagStrategy());
   
   return registry;
 }

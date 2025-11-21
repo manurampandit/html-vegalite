@@ -1,4 +1,4 @@
-import { TextStyle } from '../../types';
+import { TextStyle, ParseContext, ParsedOutput } from '../../types';
 import { BaseTagStrategy } from '../interfaces/base-tag-strategy';
 import { headingSizes } from '../../constants';
 
@@ -18,8 +18,25 @@ export class HeadingTagStrategy extends BaseTagStrategy {
     };
   }
 
+  public parse(context: ParseContext): ParsedOutput {
+    const { isClosingTag } = context;
+    
+    if (isClosingTag) {
+      return this.handleBlockLevelClosingTag(context);
+    }
+
+    return this.handleBlockLevelOpeningTag(context);
+  }
+
   public getTagNames(): string[] {
     return ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'];
+  }
+
+  /**
+   * Heading tags should create line breaks for proper formatting
+   */
+  public isLineBreak(): boolean {
+    return true;
   }
 
   /**

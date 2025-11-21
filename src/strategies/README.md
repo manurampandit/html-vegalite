@@ -27,7 +27,8 @@ src/strategies/
 │   ├── small-text-tag-strategy.ts
 │   ├── highlight-tag-strategy.ts
 │   ├── strikethrough-tag-strategy.ts
-│   └── color-tag-strategy.ts
+│   ├── color-tag-strategy.ts
+│   └── list-tag-strategy.ts
 └── registry/                   # Strategy registry
     ├── index.ts
     └── tag-strategy-registry.ts
@@ -84,6 +85,7 @@ abstract class BaseTagStrategy implements TagStrategy {
 ### Custom/Example Strategies
 - **StrikethroughTagStrategy**: Handles `<s>`, `<strike>`, `<del>` tags
 - **ColorTagStrategy**: Handles custom color shortcut tags (`<red>`, `<blue>`, etc.)
+- **ListTagStrategy**: Handles HTML list tags (`<ul>`, `<ol>`, `<li>`) with bullet points and numbering
 
 ## Usage
 
@@ -236,3 +238,70 @@ const result = strategy.applyStyle(
 
 expect(result.fontWeight).toBe('bold');
 ```
+
+## Featured Strategy: ListTagStrategy
+
+The `ListTagStrategy` provides comprehensive support for HTML list elements and demonstrates advanced strategy features including multi-tag handling and state management.
+
+### Supported Tags
+- `<ul>` - Unordered list container
+- `<ol>` - Ordered list container  
+- `<li>` - List item
+
+### Features
+- **Bullet Points**: Unordered lists (`<ul>`) render list items with bullet prefixes (`• `)
+- **Numbering**: Ordered lists (`<ol>`) render list items with sequential numbers (`1. `, `2. `, `3. `)
+- **Nesting**: Supports nested lists with proper context tracking
+- **Line Breaks**: All list elements create appropriate line breaks for formatting
+- **Style Preservation**: Works seamlessly with other formatting strategies
+- **Attribute Validation**: Validates common list attributes (class, id, style, type, start)
+
+### Usage Examples
+
+```typescript
+// Simple unordered list
+const html1 = '<ul><li>Item 1</li><li>Item 2</li></ul>';
+// Output: "• Item 1" and "• Item 2"
+
+// Simple ordered list  
+const html2 = '<ol><li>First</li><li>Second</li></ol>';
+// Output: "1. First" and "2. Second"
+
+// Nested lists
+const html3 = `
+<ul>
+  <li>Outer item
+    <ol>
+      <li>Inner item 1</li>
+      <li>Inner item 2</li>
+    </ol>
+  </li>
+</ul>`;
+// Output: "• Outer item", "1. Inner item 1", "2. Inner item 2"
+
+// Lists with styled content
+const html4 = '<ul><li><b>Bold item</b></li><li><i>Italic item</i></li></ul>';
+// Output: Preserves bold/italic formatting within list items
+```
+
+### Implementation Details
+
+The ListTagStrategy uses static state management to track:
+- **List Stack**: Current nesting context (ul/ol hierarchy)
+- **Counters**: Sequential numbering for ordered lists at each nesting level
+- **Context Management**: Automatic cleanup when lists are closed
+
+Key static methods:
+- `getListItemPrefix(tagName)`: Returns appropriate prefix for list items
+- `handleClosingTag(tagName)`: Cleans up list state when closing ul/ol tags
+- `resetListState()`: Resets all list state for clean parsing
+- `getListContext()`: Returns current list context for debugging
+
+### Integration Notes
+
+The ListTagStrategy requires special parser support for:
+1. **Closing Tag Handling**: The parser calls `handleClosingTag()` when ul/ol tags are closed
+2. **Text Prefixing**: The parser adds list item prefixes to text content within li tags
+3. **State Management**: The parser resets list state at the beginning of each parse operation
+
+This makes ListTagStrategy a good reference for implementing complex strategies that need parser integration.

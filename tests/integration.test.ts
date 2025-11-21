@@ -155,7 +155,7 @@ describe('Integration Tests', () => {
       expect(parseResult.segments).toHaveLength(3);
       expect(parseResult.segments[0].text).toBe('Bold');
       expect(parseResult.segments[0].fontWeight).toBe('bold');
-      expect(parseResult.segments[1].text).toBe(' normal ');
+      expect(parseResult.segments[1].text).toBe('normal');
       expect(parseResult.segments[1].fontWeight).toBe('normal');
       expect(parseResult.segments[2].text).toBe('italic');
       expect(parseResult.segments[2].fontStyle).toBe('italic');

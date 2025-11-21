@@ -135,7 +135,7 @@ describe('HTMLToVegaLite', () => {
       expect(result.segments).toHaveLength(2);
       expect(result.segments[0].text).toBe('Bold');
       expect(result.segments[0].fontWeight).toBe('bold');
-      expect(result.segments[1].text).toBe(' text');
+      expect(result.segments[1].text).toBe('text');
       expect(result.segments[1].fontWeight).toBe('normal');
     });
 

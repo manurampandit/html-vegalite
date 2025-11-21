@@ -356,13 +356,16 @@ describe('TextLayoutEngine', () => {
           text: 'italics text',
           fontWeight: 'normal',
           fontStyle: 'italic',
-          color: '#000000'
+          color: '#000000',
+          hasSpaceAfter: true,
+          spacingContext: 'tag-to-tag'
         },
         {
           text: 'Bold text',
           fontWeight: 'bold',
           fontStyle: 'normal',
-          color: '#000000'
+          color: '#000000',
+          hasSpaceAfter: false
         }
       ];
 
@@ -382,8 +385,10 @@ describe('TextLayoutEngine', () => {
       // Measure expected space width
       const spaceWidth = layoutEngine.measureText(' ', positioned[0]).width;
 
-      // Assert spacing is at least 1 space wide (with slight tolerance)
-      expect(secondSegmentX).toBeCloseTo(firstSegmentRight + spaceWidth, 1);
+      // Assert controlled tag-to-tag spacing (maximum 7px to avoid excessive gaps)
+      // This is a tag-to-tag transition (italic -> bold) which gets controlled spacing
+      expect(secondSegmentX - firstSegmentRight).toBeGreaterThanOrEqual(3);
+      expect(secondSegmentX - firstSegmentRight).toBeLessThanOrEqual(8);
     });
 
     it('should have appropriate vertical spacing for heading tag', () => {

@@ -3,15 +3,16 @@ import { BaseTagStrategy } from '../interfaces/base-tag-strategy';
 
 /**
  * Strategy for highlight tags: <mark>
+ * 
+ * This strategy applies highlight styling to text.
+ * Uses the default parse() implementation from BaseTagStrategy.
+ * 
  */
 export class HighlightTagStrategy extends BaseTagStrategy {
   public applyStyle(currentStyle: TextStyle, attributes: string, tagName?: string): TextStyle {
     return {
       ...currentStyle,
       color: '#212529' // Highlight text color
-      // We may further add below properties if needed:
-      // backgroundColor: '#ffff00',
-      // padding: '0.125rem'
     };
   }
 

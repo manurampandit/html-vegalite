@@ -25,7 +25,7 @@ export class HTMLToVegaLite {
       fontFamily: 'Arial, sans-serif',
       startX: 10,
       startY: 30,
-      lineHeight: undefined, // Will be calculated
+      lineHeight: undefined, 
       maxWidth: 400,
       background: 'transparent',
       ...options

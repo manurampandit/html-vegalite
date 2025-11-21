@@ -12,12 +12,14 @@ import {
   HighlightTagStrategy,
   StrikethroughTagStrategy,
   ColorTagStrategy,
+  ListTagStrategy,
   BaseTagStrategy,
   TagStrategyRegistry,
   createDefaultTagStrategyRegistry,
   createMinimalTagStrategyRegistry
 } from '../src/strategies/index';
 
+import { ListHelpers } from '../src/helpers/composite';
 import { TextStyle } from '../src/types';
 
 describe('Tag Strategies', () => {
@@ -336,8 +338,23 @@ describe('Tag Strategies', () => {
         color: '#000000'
       };
 
-      const newStyle = strategy.applyStyle(currentStyle, '');
-      expect(newStyle.color).toBe('#6c757d'); // Muted color for small text
+      // Test small tag
+      const smallStyle = strategy.applyStyle(currentStyle, '', 'small');
+      expect(smallStyle.color).toBe('#6c757d'); // Muted color for small text
+      expect(smallStyle.fontSize).toBe(10.5); // 75% of 14px
+      expect(smallStyle.verticalOffset).toBeUndefined(); // No offset for small text
+      
+      // Test subscript tag
+      const subStyle = strategy.applyStyle(currentStyle, '', 'sub');
+      expect(subStyle.color).toBe('#000000'); // Normal color for subscript
+      expect(subStyle.fontSize).toBe(10.5); // 75% of 14px
+      expect(subStyle.verticalOffset).toBeCloseTo(2.1); // Positive offset (down)
+      
+      // Test superscript tag
+      const supStyle = strategy.applyStyle(currentStyle, '', 'sup');
+      expect(supStyle.color).toBe('#000000'); // Normal color for superscript
+      expect(supStyle.fontSize).toBe(10.5); // 75% of 14px
+      expect(supStyle.verticalOffset).toBeCloseTo(-4.9); // Negative offset (up)
     });
   });
 
@@ -410,6 +427,72 @@ describe('Tag Strategies', () => {
       const newStyle = strategy.applyStyle(currentStyle, '');
       expect(newStyle.textDecoration).toBe('line-through');
       expect(newStyle.color).toBe('#6c757d'); // Muted color
+    });
+  });
+
+  describe('ListTagStrategy', () => {
+    let strategy: ListTagStrategy;
+
+    beforeEach(() => {
+      strategy = new ListTagStrategy();
+      ListTagStrategy.resetListState();
+    });
+
+    afterEach(() => {
+      ListTagStrategy.resetListState();
+    });
+
+    it('should return correct tag names', () => {
+      const tagNames = strategy.getTagNames();
+      expect(tagNames).toEqual(['ul', 'ol', 'li']);
+    });
+
+    it('should indicate line break for all list tags', () => {
+      expect(strategy.isLineBreak()).toBe(true);
+    });
+
+    it('should preserve current style for list container tags', () => {
+      const currentStyle: TextStyle = {
+        fontWeight: 'normal',
+        fontStyle: 'normal',
+        color: '#ff0000',
+        textDecoration: 'underline'
+      };
+
+      const ulStyle = strategy.applyStyle(currentStyle, '', 'ul');
+      expect(ulStyle).toEqual(currentStyle);
+
+      const olStyle = strategy.applyStyle(currentStyle, '', 'ol');
+      expect(olStyle).toEqual(currentStyle);
+    });
+
+    it('should track list context correctly', () => {
+      strategy.applyStyle({} as TextStyle, '', 'ul');
+      let context = ListHelpers.getListContext();
+      expect(context.stack).toEqual(['ul']);
+
+      strategy.applyStyle({} as TextStyle, '', 'ol');
+      context = ListHelpers.getListContext();
+      expect(context.stack).toEqual(['ul', 'ol']);
+    });
+
+    it('should generate correct prefixes', () => {
+      // Unordered list
+      strategy.applyStyle({} as TextStyle, '', 'ul');
+      expect(ListHelpers.getListItemPrefix('li')).toBe('• ');
+
+      // Reset and test ordered list
+      ListTagStrategy.resetListState();
+      strategy.applyStyle({} as TextStyle, '', 'ol');
+      expect(ListHelpers.getListItemPrefix('li')).toBe('1. ');
+    });
+
+    it('should validate attributes correctly', () => {
+      const validAttrs = strategy.validateAttributes('class="list-class"');
+      expect(validAttrs.isValid).toBe(true);
+
+      const invalidAttrs = strategy.validateAttributes('invalid syntax');
+      expect(invalidAttrs.isValid).toBe(false);
     });
   });
 });
@@ -546,6 +629,11 @@ describe('Factory Functions', () => {
       expect(registry.isSupported('sub')).toBe(true);
       expect(registry.isSupported('sup')).toBe(true);
       expect(registry.isSupported('mark')).toBe(true);
+
+      // Test list strategies
+      expect(registry.isSupported('ul')).toBe(true);
+      expect(registry.isSupported('ol')).toBe(true);
+      expect(registry.isSupported('li')).toBe(true);
     });
 
     it('should return functioning strategies', () => {

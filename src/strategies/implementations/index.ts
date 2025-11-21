@@ -18,3 +18,4 @@ export { HighlightTagStrategy } from './highlight-tag-strategy';
 // Custom/Example strategy implementations
 export { StrikethroughTagStrategy } from './strikethrough-tag-strategy';
 export { ColorTagStrategy } from './color-tag-strategy';
+export { ListTagStrategy } from './list-tag-strategy';

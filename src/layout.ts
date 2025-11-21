@@ -1,5 +1,6 @@
 import { TextStyle, TextSegment, PositionedTextSegment, TextMeasurement, HTMLToVegaLiteOptions } from './types';
-import { colorMap, inverseHeadingSizes } from './constants';
+import { colorMap, inverseHeadingSizes, headingSizes, FONT_STYLE, FONT_WEIGHT, TEXT_DECORATION } from './constants';
+import { StyleHelpers } from './helpers/style';
 
 /**
  * Text layout engine that positions text segments
@@ -39,7 +40,7 @@ export class TextLayoutEngine {
     if (this.canvasContext) {
       return this.measureTextWithCanvas(text, style);
     } else {
-      return this.measureTextFallback(text, style);
+      return StyleHelpers.measureTextFallback(text, style, this.fontSize);
     }
   }
 
@@ -48,16 +49,13 @@ export class TextLayoutEngine {
    */
   private measureTextWithCanvas(text: string, style: TextStyle): TextMeasurement {
     if (!this.canvasContext) {
-      return this.measureTextFallback(text, style);
+      return StyleHelpers.measureTextFallback(text, style, this.fontSize);
     }
 
-    const weight = style.fontWeight === 'bold' ? 'bold' : 'normal';
-    const fontStyle = style.fontStyle === 'italic' ? 'italic' : 'normal';
-    const fontSize = style.fontSize || this.fontSize;
-    
-    this.canvasContext.font = `${fontStyle} ${weight} ${fontSize}px ${this.fontFamily}`;
+    this.canvasContext.font = StyleHelpers.createCanvasFontString(style, this.fontSize, this.fontFamily);
     
     const metrics = this.canvasContext.measureText(text);
+    const fontSize = style.fontSize || this.fontSize;
     
     return {
       width: metrics.width,
@@ -65,52 +63,52 @@ export class TextLayoutEngine {
     };
   }
 
+
+
   /**
-   * Fallback text measurement (server-side or when canvas unavailable)
+   * Get additional spacing below heading based on heading level
+   * H1 gets the most spacing, H6 gets the least
+   * Uses half of the heading font size as spacing
    */
-  private measureTextFallback(text: string, style: TextStyle): TextMeasurement {
-    // Approximate character width based on font properties
-    const fontSize = style.fontSize || this.fontSize;
-    let charWidth = fontSize * 0.6; // Base character width
-    
-    // Adjust for bold text (wider)
-    if (style.fontWeight === 'bold') {
-      charWidth *= 1.15;
-    }
-    
-    // Adjust for italic text (slightly wider due to slant)
-    if (style.fontStyle === 'italic') {
-      charWidth *= 1.05;
-    }
-    
-    return {
-      width: text.length * charWidth,
-      height: fontSize
-    };
-  }
-
-   /**
-   * Check if a text segment is a heading style
-   */
-  private isHeadingStyle(segment: TextSegment, measurement: { height: number }): boolean {
-    const size = measurement.height;
-
-    return segment.fontWeight === 'bold' && inverseHeadingSizes[segment.fontSize ?? 0] !== undefined;
+  private getHeadingSpacing(headingType: string): number {
+    return (headingSizes[headingType] || 0) / 2;
   }
 
   /**
-   * Check if a text segment is unstyled (No HTML Tag applied)
+   * Check if we're at the end of a heading block
    */
-  private isUnstyledSegment(segment: TextSegment): boolean {
-    const color = segment.color?.toLowerCase();
-
-    return (
-      segment.fontWeight === 'normal' &&
-      segment.fontStyle === 'normal' &&
-      segment.textDecoration === 'none' &&
-      (!color || color === colorMap['black'])
-    );
+  private isEndOfHeadingBlock(segments: TextSegment[], currentIndex: number, currentHeadingType: string): boolean {
+    // Check if the next non-newline segment is also part of the same heading
+    for (let i = currentIndex + 1; i < segments.length; i++) {
+      const nextSegment = segments[i];
+      if (!nextSegment) continue;
+      
+      // Skip newline segments
+      if (nextSegment.text === '\n') continue;
+      
+      // Check if next segment is still a heading
+      const nextMeasurement = this.measureText(nextSegment.text, nextSegment);
+      if (!StyleHelpers.isHeadingStyle(nextSegment, nextMeasurement)) {
+        // Next segment is not a heading, so current heading block ends here
+        return true;
+      }
+      
+      // Check if it's the same heading type
+      const nextHeadingType = StyleHelpers.getHeadingType(nextSegment);
+      if (nextHeadingType !== currentHeadingType) {
+        // Different heading type, so current heading block ends here
+        return true;
+      }
+      
+      // Same heading type continues
+      return false;
+    }
+    
+    // Reached end of segments
+    return true;
   }
+
+
 
 
   /**
@@ -122,7 +120,10 @@ export class TextLayoutEngine {
     let currentY = this.startY;
     const wrapWidth = maxWidth ?? 400;
 
-    for (const segment of segments) {
+    for (let i = 0; i < segments.length; i++) {
+      const segment = segments[i];
+      if (!segment) continue;
+      
       // Handle explicit line breaks
       if (segment.text === '\n') {
         currentX = this.startX;
@@ -134,12 +135,16 @@ export class TextLayoutEngine {
       const measurement = this.measureText(segment.text, segment);
       const segmentLineHeight = Math.max(this.lineHeight, measurement.height);
 
-      const isHeading = this.isHeadingStyle(segment, measurement);
-
-      // Add spacing before heading if not already at new line
-      if (isHeading && currentX > this.startX) {
+      const isHeading = StyleHelpers.isHeadingStyle(segment, measurement);
+      
+      // Check if segment fits on current line
+      const segmentWouldExceedWidth = currentX + measurement.width > wrapWidth;
+      const shouldWrapSegment = segmentWouldExceedWidth && currentX > this.startX;
+      
+      if (shouldWrapSegment) {
+        // This segment needs to wrap to next line
         currentX = this.startX;
-        currentY += segmentLineHeight * 0.75;
+        currentY += segmentLineHeight;
       }
       
       if (measurement.width > wrapWidth && segment.text.includes(' ')) {
@@ -157,11 +162,18 @@ export class TextLayoutEngine {
           if (testMeasurement.width > wrapWidth && currentLine) {
             // Add current line if it has content
             const lineMeasurement = this.measureText(currentLine, segment);
+            
+            // Calculate indentation for list items in word wrapping
+            let indentationX = 0;
+            if (segment.isListItem && segment.listNestingLevel) {
+              indentationX = 20 + ((segment.listNestingLevel - 1) * 20);
+            }
+            
             positioned.push({
               ...segment,
               text: currentLine,
-              x: currentX,
-              y: currentY,
+              x: currentX + indentationX,
+              y: currentY + (segment.verticalOffset || 0),
               width: lineMeasurement.width,
               height: lineMeasurement.height
             });
@@ -176,44 +188,146 @@ export class TextLayoutEngine {
         // Add remaining text
         if (currentLine) {
           const lineMeasurement = this.measureText(currentLine, segment);
+          
+          // Calculate indentation for list items in word wrapping
+          let indentationX = 0;
+          if (segment.isListItem && segment.listNestingLevel) {
+            indentationX = 20 + ((segment.listNestingLevel - 1) * 20);
+          }
+          
+          // Don't apply offset for wrapped segments that continue text flow
+          const offsetX = StyleHelpers.isUnstyledSegment(segment) && !segment.isListItem && currentX === this.startX ? 2 : 0;
+          
           positioned.push({
             ...segment,
             text: currentLine,
-            x: currentX,
-            y: currentY, // Keep as top-based for internal layout
+            x: currentX + indentationX + offsetX,
+            y: currentY + (segment.verticalOffset || 0), // Apply vertical offset for sub/sup
             width: lineMeasurement.width,
             height: lineMeasurement.height
           });
           currentX += lineMeasurement.width;
+          
+          // Intelligent spacing for word-wrapped segments
+          if (segment.hasSpaceAfter) {
+            const spaceMeasurement = this.measureText(' ', segment);
+            let spaceWidth = spaceMeasurement.width;
+            
+            // Enhanced spacing for text-to-tag and tag-to-tag transitions to improve readability
+            // (tag-to-text transitions use reduced spacing)
+            if (segment.spacingContext === 'text-to-tag') {
+              // Apply more generous spacing when normal text precedes styled text (minimum 8px)
+              spaceWidth = Math.max(spaceWidth, 8);
+            } else if (segment.spacingContext === 'tag-to-tag') {
+              // For word-wrapped segments, we need to find the next segment more carefully
+              let nextSegment = null;
+              for (let j = i + 1; j < segments.length; j++) {
+                if (segments[j]?.text.trim()) {
+                  nextSegment = segments[j];
+                  break;
+                }
+              }
+              if (nextSegment && this.hasSharedParentStyling(segment, nextSegment)) {
+                // Apply reduced spacing for segments within the same parent element (maximum 5px)
+                spaceWidth = Math.min(spaceWidth, 5);
+              } else {
+                // Apply enhanced spacing between consecutive styled elements (minimum 10px)
+                spaceWidth = Math.max(spaceWidth, 10);
+              }
+            } else if (segment.spacingContext === 'tag-to-text') {
+              // Apply reduced spacing when styled text is followed by normal text (maximum 6px)
+              spaceWidth = Math.min(spaceWidth, 6);
+            } else if (segment.spacingContext === 'list-prefix') {
+              // Apply consistent spacing for list prefixes regardless of following content styling (fixed 5px)
+              spaceWidth = 5;
+            }
+            
+            currentX += spaceWidth;
+          }
+        }
+        
+        // Apply additional spacing after heading blocks (word-wrapped case)
+        if (isHeading) {
+          const headingType = StyleHelpers.getHeadingType(segment);
+          if (headingType && this.isEndOfHeadingBlock(segments, i, headingType)) {
+            // This is the end of a heading block, add extra spacing
+            const additionalSpacing = this.getHeadingSpacing(headingType);
+            currentY += additionalSpacing;
+          }
         }
       } else {
         // Line wrapping logic for segments that don't need word wrapping
-        if (currentX > this.startX && currentX + measurement.width > wrapWidth) {
+        const hasWrapped = currentX > this.startX && currentX + measurement.width > wrapWidth;
+        if (hasWrapped) {
           currentX = this.startX;
           currentY += segmentLineHeight;
         }
 
-        const isUnstyled = this.isUnstyledSegment(segment);
+        const isUnstyled = StyleHelpers.isUnstyledSegment(segment);
 
-        // Apply small offset for unstyled text (e.g., 2px)
-        const offsetX = isUnstyled ? 2 : 0;
+        // Calculate indentation for list items
+        let indentationX = 0;
+        if (segment.isListItem && segment.listNestingLevel) {
+          // Base padding for first-level lists: 20px
+          // Additional indentation for nested lists: 20px per level
+          indentationX = 20 + ((segment.listNestingLevel - 1) * 20);
+        }
+
+        // Apply small offset for unstyled text (e.g., 2px), but not for list items or after wrapping
+        const offsetX = isUnstyled && !segment.isListItem && !hasWrapped ? 2 : 0;
+        const totalOffsetX = offsetX + indentationX;
 
         positioned.push({
           ...segment,
-          x: currentX + offsetX, 
-          y: currentY + (segmentLineHeight - measurement.height), // Keep as top-based for internal layout
+          x: currentX + totalOffsetX, 
+          y: currentY + (segmentLineHeight - measurement.height) + (segment.verticalOffset || 0), // Apply vertical offset
           width: measurement.width,
           height: measurement.height
         });
 
         currentX += measurement.width;
-        const spaceMeasurement = this.measureText(' ', segment);
-        currentX += spaceMeasurement.width;
+        
+        // Intelligent spacing: only add space if segment indicates it should have space after it
+        if (segment.hasSpaceAfter) {
+          const spaceMeasurement = this.measureText(' ', segment);
+          let spaceWidth = spaceMeasurement.width;
+          
+          // Enhanced spacing for text-to-tag and tag-to-tag transitions to improve readability
+          // (tag-to-text transitions use reduced spacing)
+          if (segment.spacingContext === 'text-to-tag') {
+            // Apply more generous spacing when normal text precedes styled text (minimum 8px)
+            spaceWidth = Math.max(spaceWidth, 8);
+          } else if (segment.spacingContext === 'tag-to-tag') {
+            // Check if segments share parent styling (nested within same element)
+            const nextSegment = segments[i + 1];
+            if (nextSegment && this.hasSharedParentStyling(segment, nextSegment)) {
+              // Apply reduced spacing for segments within the same parent element (maximum 5px)
+              spaceWidth = Math.min(spaceWidth, 5);
+            } else {
+              // Apply controlled spacing between consecutive styled elements (maximum 7px to avoid excessive gaps)
+              spaceWidth = Math.max(spaceWidth, 7);
+            }
+          } else if (segment.spacingContext === 'tag-to-text') {
+            // Apply reduced spacing when styled text is followed by normal text (maximum 6px)
+            spaceWidth = Math.min(spaceWidth, 6);
+          } else if (segment.spacingContext === 'list-prefix') {
+            // Apply consistent spacing for list prefixes regardless of following content styling (fixed 5px)
+            spaceWidth = 5;
+          }
+          
+          currentX += spaceWidth;
+        }
 
-        // Add vertical spacing after heading
-        if (isHeading) {
-          currentX = this.startX;
-          currentY += segmentLineHeight * 1.2;
+        // No extra vertical spacing - line breaks are handled by parser
+      }
+
+      // Apply additional spacing after heading blocks
+      if (isHeading) {
+        const headingType = StyleHelpers.getHeadingType(segment);
+        if (headingType && this.isEndOfHeadingBlock(segments, i, headingType)) {
+          // This is the end of a heading block, add extra spacing
+          const additionalSpacing = this.getHeadingSpacing(headingType);
+          currentY += additionalSpacing;
         }
       }
     }
@@ -271,5 +385,37 @@ export class TextLayoutEngine {
       startY: this.startY,
       lineHeight: this.lineHeight
     };
+  }
+
+  /**
+   * Check if two segments share parent styling (indicating they're nested within the same element)
+   */
+  private hasSharedParentStyling(current: TextSegment, next: TextSegment): boolean {
+    // Segments share parent styling if they have overlapping base styles
+    // This indicates they're part of the same parent element with additional nested styling
+    
+    const currentBaseStyles = {
+      fontWeight: current.fontWeight || 'normal',
+      color: current.color || '#000000',
+      fontSize: current.fontSize || 14
+    };
+    
+    const nextBaseStyles = {
+      fontWeight: next.fontWeight || 'normal', 
+      color: next.color || '#000000',
+      fontSize: next.fontSize || 14
+    };
+    
+    // If they share font weight (like both being bold), they likely share a parent
+    const sharesFontWeight = currentBaseStyles.fontWeight === nextBaseStyles.fontWeight && 
+                            currentBaseStyles.fontWeight !== 'normal';
+    
+    const sharesColor = currentBaseStyles.color === nextBaseStyles.color && 
+                       currentBaseStyles.color !== '#000000';
+                       
+    const sharesFontSize = currentBaseStyles.fontSize === nextBaseStyles.fontSize &&
+                          currentBaseStyles.fontSize !== 14;
+    
+    return sharesFontWeight || sharesColor || sharesFontSize;
   }
 }

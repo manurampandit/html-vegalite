@@ -2,7 +2,10 @@ import { TextStyle } from '../../types';
 import { BaseTagStrategy } from '../interfaces/base-tag-strategy';
 
 /**
- * Example of custom strategy for strike-through text
+ * Strategy for strike-through text tags: <s>, <strike>, <del>
+ * 
+ * This strategy applies line-through text decoration and a muted color.
+ * Uses the default parse() implementation from BaseTagStrategy.
  */
 export class StrikethroughTagStrategy extends BaseTagStrategy {
   public applyStyle(currentStyle: TextStyle, attributes: string, tagName?: string): TextStyle {

@@ -1,4 +1,4 @@
-import { TextStyle } from '../../types';
+import { TextStyle, ParseContext, ParsedOutput } from '../../types';
 import { BaseTagStrategy } from '../interfaces/base-tag-strategy';
 
 /**
@@ -16,7 +16,24 @@ export class ParagraphTagStrategy extends BaseTagStrategy {
     };
   }
 
+  public parse(context: ParseContext): ParsedOutput {
+    const { isClosingTag } = context;
+    
+    if (isClosingTag) {
+      return this.handleBlockLevelClosingTag(context);
+    }
+
+    return this.handleBlockLevelOpeningTag(context);
+  }
+
   public getTagNames(): string[] {
     return ['p'];
+  }
+
+  /**
+   * Paragraph tags should create line breaks for proper formatting
+   */
+  public isLineBreak(): boolean {
+    return true;
   }
 }

@@ -1,5 +1,8 @@
-import { TextStyle, TextSegment, ParseResult } from './types';
+import { TextStyle, TextSegment, ParseResult, ParseContext } from './types';
 import { TagStrategy, TagStrategyRegistry, createDefaultTagStrategyRegistry } from './strategies/index';
+import { ListTagStrategy } from './strategies/implementations/list-tag-strategy';
+import { SpacingAnalyzer } from './spacing-analyzer';
+import { StyleHelpers } from './helpers/style';
 
 /**
  * HTML Parser with extensible tag strategy system
@@ -17,6 +20,18 @@ export class HTMLParser {
   }
 
   /**
+   * Check if we need a line break before this segment
+   */
+  private needsLineBreak(segments: TextSegment[]): boolean {
+    if (segments.length === 0) return false;
+    
+    const lastSegment = segments[segments.length - 1];
+    return lastSegment !== undefined && 
+           lastSegment.text !== '\n' && 
+           lastSegment.text.trim() !== '';
+  }
+
+  /**
    * Parse HTML string into text segments with styling information
    * Uses strategy pattern for extensible tag handling
    */
@@ -31,6 +46,9 @@ export class HTMLParser {
     }
     
     try {
+      // Reset list state for clean parsing
+      ListTagStrategy.resetListState();
+      
       // Enhanced regex pattern to capture more tag types
       const tagPattern = /<(\/?)([a-zA-Z][a-zA-Z0-9]*)([^>]*)>/gi;
       const parts = html.split(tagPattern);
@@ -46,17 +64,41 @@ export class HTMLParser {
         // Check if this is a tag
         if (i % 4 === 1) { // Closing tag indicator
           if (part === '/') {
-            // Pop style stack for closing tag
-            if (styleStack.length > 1) {
-              styleStack.pop();
-              const prevStyle = styleStack[styleStack.length - 1];
-              if (prevStyle) {
-                currentStyle = {
-                  fontWeight: prevStyle.fontWeight,
-                  fontStyle: prevStyle.fontStyle,
-                  color: prevStyle.color,
-                  textDecoration: prevStyle.textDecoration ?? 'none'
+            // Get the closing tag name
+            const closingTagName = parts[i + 1]?.toLowerCase();
+            
+            if (closingTagName) {
+              const strategy = this.strategyRegistry.getStrategy(closingTagName);
+              
+              if (strategy) {
+                // Create parse context for closing tag
+                const context: ParseContext = {
+                  currentStyle,
+                  styleStack,
+                  segments,
+                  attributes: '',
+                  tagName: closingTagName,
+                  isClosingTag: true,
+                  remainingParts: parts.slice(i + 2),
+                  currentIndex: i
                 };
+                
+                // Use strategy to handle closing tag
+                const result = strategy.parse(context);
+                
+                // Apply strategy results
+                segments.push(...result.newSegments);
+                errors.push(...result.errors);
+                
+                if (result.popFromStyleStack && styleStack.length > 1) {
+                  styleStack.pop();
+                  const prevStyle = styleStack[styleStack.length - 1];
+                  if (prevStyle) {
+                    currentStyle = { ...prevStyle };
+                  }
+                }
+              } else {
+                errors.push(`Unsupported closing tag: ${closingTagName}`);
               }
             }
           }
@@ -68,26 +110,28 @@ export class HTMLParser {
             const strategy = this.strategyRegistry.getStrategy(tagName);
             
             if (strategy) {
-              // Validate attributes if strategy supports it
-              if (strategy.validateAttributes) {
-                const validation = strategy.validateAttributes(attributes);
-                if (!validation.isValid) {
-                  errors.push(...validation.errors);
-                }
-              }
+              // Create parse context for opening tag
+              const context: ParseContext = {
+                currentStyle,
+                styleStack,
+                segments,
+                attributes,
+                tagName,
+                isClosingTag: false,
+                remainingParts: parts.slice(i + 4),
+                currentIndex: i
+              };
               
-              // Check if this is a line break strategy
-              if (strategy.isLineBreak && strategy.isLineBreak()) {
-                // Insert a newline character for line breaks
-                segments.push({
-                  text: '\n',
-                  ...currentStyle
-                });
-              } else {
-                // Apply styling using strategy
-                const newStyle = strategy.applyStyle(currentStyle, attributes, tagName);
-                styleStack.push(newStyle);
-                currentStyle = newStyle;
+              // Use strategy to handle opening tag
+              const result = strategy.parse(context);
+              
+              // Apply strategy results
+              segments.push(...result.newSegments);
+              errors.push(...result.errors);
+              
+              if (result.pushStyleToStack) {
+                styleStack.push(result.updatedStyle);
+                currentStyle = result.updatedStyle;
               }
             } else {
               errors.push(`Unsupported tag: ${tagName}`);
@@ -96,6 +140,7 @@ export class HTMLParser {
           }
         } else if (i % 4 === 0) { // Text content
           if (part.trim()) {
+            // Create segment for text content with current style
             segments.push({
               text: part,
               ...currentStyle
@@ -104,8 +149,11 @@ export class HTMLParser {
         }
       }
       
+      // Apply intelligent spacing analysis to segments
+      const spacedSegments = SpacingAnalyzer.analyzeAndAssignSpacing(segments, html);
+      
       const result: ParseResult = { 
-        segments,
+        segments: spacedSegments,
         errors: errors.length > 0 ? errors : []
       };
       return result;
@@ -153,13 +201,7 @@ export class HTMLParser {
    * Get default text style
    */
   private getDefaultStyle(): TextStyle {
-    return {
-      fontWeight: 'normal',
-      fontStyle: 'normal',
-      color: '#000000',
-      textDecoration: 'none'
-      // fontSize is optional and will be set by strategies when needed
-    };
+    return StyleHelpers.getDefaultStyle();
   }
 
   /**

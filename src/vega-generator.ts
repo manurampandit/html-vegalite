@@ -300,7 +300,7 @@ export class VegaLiteGenerator {
         id: segment.id,
         x: segment.x,
         x2: segment.x + (segment.width || this.estimateTextWidth(segment.text, groupFontSize)),
-        y: textTopY + (textHeight * 0.6) // Position line through middle from top
+        y: textTopY + (textHeight * 0.5) // Position line through center of text
       };
     });
 
