@@ -23,57 +23,13 @@ class UnorderedListStrategy extends BaseTagStrategy {
   }
 
   public parse(context: ParseContext): ParsedOutput {
-    const { isClosingTag, attributes, currentStyle, segments, remainingParts, currentIndex } = context;
-    const errors: string[] = [];
-    const newSegments: typeof context.segments = [];
-    
-    // Validate attributes
-    if (this.validateAttributes && !isClosingTag) {
-      const validation = this.validateAttributes(attributes);
-      if (!validation.isValid) {
-        errors.push(...validation.errors);
-      }
-    }
+    const { isClosingTag } = context;
     
     if (isClosingTag) {
-      // Handle closing ul tag
-      // Stack management is handled by parent CompositeParseStrategy
-      
-      // Add line break after list if there's more content
-      if (this.hasMoreContent(remainingParts, currentIndex)) {
-        newSegments.push({
-          text: '\n',
-          ...currentStyle
-        });
-      }
-      
-      return {
-        newSegments,
-        updatedStyle: currentStyle,
-        pushStyleToStack: false,
-        popFromStyleStack: true,
-        errors
-      };
-    } else {
-      // Handle opening ul tag
-      // Add line break before list container if needed
-      if (this.needsLineBreak(segments)) {
-        newSegments.push({
-          text: '\n',
-          ...currentStyle
-        });
-      }
-      
-      const newStyle = this.applyStyle(currentStyle, attributes, context.tagName);
-      
-      return {
-        newSegments,
-        updatedStyle: newStyle,
-        pushStyleToStack: true,
-        popFromStyleStack: false,
-        errors
-      };
+      return this.handleBlockLevelClosingTag(context);
     }
+
+    return this.handleBlockLevelOpeningTag(context);
   }
 
   public getTagNames(): string[] {
@@ -116,57 +72,13 @@ class OrderedListStrategy extends BaseTagStrategy {
   }
 
   public parse(context: ParseContext): ParsedOutput {
-    const { isClosingTag, attributes, currentStyle, segments, remainingParts, currentIndex } = context;
-    const errors: string[] = [];
-    const newSegments: typeof context.segments = [];
-    
-    // Validate attributes
-    if (this.validateAttributes && !isClosingTag) {
-      const validation = this.validateAttributes(attributes);
-      if (!validation.isValid) {
-        errors.push(...validation.errors);
-      }
-    }
+    const { isClosingTag } = context;
     
     if (isClosingTag) {
-      // Handle closing ol tag
-      // Stack management is handled by parent CompositeParseStrategy
-      
-      // Add line break after list if there's more content
-      if (this.hasMoreContent(remainingParts, currentIndex)) {
-        newSegments.push({
-          text: '\n',
-          ...currentStyle
-        });
-      }
-      
-      return {
-        newSegments,
-        updatedStyle: currentStyle,
-        pushStyleToStack: false,
-        popFromStyleStack: true,
-        errors
-      };
-    } else {
-      // Handle opening ol tag
-      // Add line break before list container if needed
-      if (this.needsLineBreak(segments)) {
-        newSegments.push({
-          text: '\n',
-          ...currentStyle
-        });
-      }
-      
-      const newStyle = this.applyStyle(currentStyle, attributes, context.tagName);
-      
-      return {
-        newSegments,
-        updatedStyle: newStyle,
-        pushStyleToStack: true,
-        popFromStyleStack: false,
-        errors
-      };
+      return this.handleBlockLevelClosingTag(context);
     }
+
+    return this.handleBlockLevelOpeningTag(context);
   }
 
   public getTagNames(): string[] {

@@ -135,7 +135,7 @@ export class SpacingAnalyzer {
     );
     
     const match = originalHtml.match(combinedPattern);
-    return match && match[2] ? match[2].length > 0 : false;
+    return (match?.[2]?.length ?? 0) > 0;
   }
 
   /**
@@ -188,15 +188,11 @@ export class SpacingAnalyzer {
     const currentIsFromTag = this.isFromTag(current, index, segments);
     const nextIsFromTag = next ? this.isFromTag(next, index + 1, segments) : false;
 
-    if (currentIsFromTag && next && nextIsFromTag) {
-      return 'tag-to-tag';
-    } else if (currentIsFromTag && next && !nextIsFromTag) {
-      return 'tag-to-text';
-    } else if (!currentIsFromTag && next && nextIsFromTag) {
-      return 'text-to-tag';
-    } else {
-      return 'text-to-text';
-    }
+    if (currentIsFromTag && nextIsFromTag) return 'tag-to-tag';
+    if (currentIsFromTag && !nextIsFromTag) return 'tag-to-text';
+    if (!currentIsFromTag && nextIsFromTag) return 'text-to-tag';
+    
+    return 'text-to-text';
   }
 
   /**
