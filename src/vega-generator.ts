@@ -70,7 +70,8 @@ export class VegaLiteGenerator {
             fontStyle: segment.fontStyle,
             color: segment.color,
             textDecoration: segment.textDecoration ?? 'none',
-            fontSize: segment.fontSize ?? this.fontSize
+            fontSize: segment.fontSize ?? this.fontSize,
+            href: segment.href ?? undefined,
           },
           data: []
         };
@@ -82,7 +83,8 @@ export class VegaLiteGenerator {
         x: segment.x,
         y: segment.y,
         width: segment.width,
-        height: segment.height
+        height: segment.height,
+        href: segment.href
       });
     });
 
@@ -93,7 +95,7 @@ export class VegaLiteGenerator {
    * Create a unique key for style grouping
    */
   private createStyleKey(segment: PositionedTextSegment): string {
-    return `${segment.fontWeight}-${segment.fontStyle}-${segment.color}-${segment.textDecoration ?? 'none'}-${segment.fontSize ?? 'default'}`;
+    return `${segment.fontWeight}-${segment.fontStyle}-${segment.color}-${segment.textDecoration ?? 'none'}-${segment.fontSize ?? 'default'}-${segment.href ?? 'no-link'}`;
   }
 
   /**
@@ -137,7 +139,7 @@ export class VegaLiteGenerator {
     const fontSize = options.fontSize || group.style.fontSize || baseFontSize;
     
     // Keep original coordinates since we're using 'top' baseline
-    return {
+    const layer: any = {
       data: { values: group.data },
       mark: {
         type: 'text',
@@ -147,7 +149,8 @@ export class VegaLiteGenerator {
         fontStyle: group.style.fontStyle,
         color: group.style.color,
         align: 'left',
-        baseline: 'top'
+        baseline: 'top',
+        cursor: group.style.href ? 'pointer' : 'default'
       },
       encoding: {
         x: {
@@ -168,6 +171,16 @@ export class VegaLiteGenerator {
         }
       }
     };
+
+    // Add href encoding if this is a hyperlink
+    if (group.style.href) {
+      layer.encoding.href = {
+        field: 'href',
+        type: 'nominal'
+      };
+    }
+
+    return layer;
   }
 
   /**

@@ -8,6 +8,7 @@ export interface TextStyle {
   textDecoration?: 'none' | 'underline' | 'line-through';
   fontSize?: number;
   verticalOffset?: number; // Negative for superscript, positive for subscript
+  href?: string | undefined; // URL for hyperlinks
   // List context properties
   isListItem?: boolean;
   listNestingLevel?: number;
@@ -73,6 +74,7 @@ export interface VegaLiteLayerData {
   y: number;
   width?: number;
   height?: number;
+  href?: string | undefined;
 }
 
 /**

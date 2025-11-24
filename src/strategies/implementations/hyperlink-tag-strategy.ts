@@ -14,9 +14,8 @@ export class HyperlinkTagStrategy extends BaseTagStrategy {
     return {
       ...currentStyle,
       color: '#0066CC', // Traditional link blue
-      textDecoration: 'underline'
-      // We may further add if needed:
-      // href: hrefMatch ? hrefMatch[1] : undefined
+      textDecoration: 'underline',
+      href: hrefMatch ? hrefMatch[1] : undefined,
     };
   }
 
