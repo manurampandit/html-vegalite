@@ -70,7 +70,8 @@ export class VegaLiteGenerator {
             fontStyle: segment.fontStyle,
             color: segment.color,
             textDecoration: segment.textDecoration ?? 'none',
-            fontSize: segment.fontSize ?? this.fontSize
+            fontSize: segment.fontSize ?? this.fontSize,
+            href: segment.href ?? undefined,
           },
           data: []
         };
@@ -82,7 +83,8 @@ export class VegaLiteGenerator {
         x: segment.x,
         y: segment.y,
         width: segment.width,
-        height: segment.height
+        height: segment.height,
+        href: segment.href
       });
     });
 
@@ -93,7 +95,7 @@ export class VegaLiteGenerator {
    * Create a unique key for style grouping
    */
   private createStyleKey(segment: PositionedTextSegment): string {
-    return `${segment.fontWeight}-${segment.fontStyle}-${segment.color}-${segment.textDecoration ?? 'none'}-${segment.fontSize ?? 'default'}`;
+    return `${segment.fontWeight}-${segment.fontStyle}-${segment.color}-${segment.textDecoration ?? 'none'}-${segment.fontSize ?? 'default'}-${segment.href ?? 'no-link'}`;
   }
 
   /**
@@ -137,7 +139,7 @@ export class VegaLiteGenerator {
     const fontSize = options.fontSize || group.style.fontSize || baseFontSize;
     
     // Keep original coordinates since we're using 'top' baseline
-    return {
+    const layer: any = {
       data: { values: group.data },
       mark: {
         type: 'text',
@@ -147,20 +149,21 @@ export class VegaLiteGenerator {
         fontStyle: group.style.fontStyle,
         color: group.style.color,
         align: 'left',
-        baseline: 'top'
+        baseline: 'top',
+        cursor: group.style.href ? 'pointer' : 'default'
       },
       encoding: {
         x: {
           field: 'x',
           type: 'quantitative',
           axis: null,
-          scale: { domain: [0, bounds.width] }
+          scale: null
         },
         y: {
           field: 'y',
           type: 'quantitative',
           axis: null,
-          scale: { domain: [bounds.height, 0] }  // Invert Y domain to match top-down layout
+          scale: null
         },
         text: {
           field: 'text',
@@ -168,6 +171,16 @@ export class VegaLiteGenerator {
         }
       }
     };
+
+    // Add href encoding if this is a hyperlink
+    if (group.style.href) {
+      layer.encoding.href = {
+        field: 'href',
+        type: 'nominal'
+      };
+    }
+
+    return layer;
   }
 
   /**
@@ -201,13 +214,13 @@ export class VegaLiteGenerator {
             field: 'x',
             type: 'quantitative',
             axis: null,
-            scale: { domain: [0, 200] }
+            scale: null
           },
           y: {
             field: 'y',
             type: 'quantitative',
             axis: null,
-            scale: { domain: [0, 50] }
+            scale: null
           },
           text: {
             field: 'text',
@@ -265,7 +278,7 @@ export class VegaLiteGenerator {
           field: 'x',
           type: 'quantitative',
           axis: null,
-          scale: { domain: [0, bounds.width] }
+          scale: null
         },
         x2: {
           field: 'x2',
@@ -275,7 +288,7 @@ export class VegaLiteGenerator {
           field: 'y',
           type: 'quantitative',
           axis: null,
-          scale: { domain: [bounds.height, 0] }  // Invert Y domain to match top-down layout
+          scale: null
         }
       }
     };
@@ -316,7 +329,7 @@ export class VegaLiteGenerator {
           field: 'x',
           type: 'quantitative',
           axis: null,
-          scale: { domain: [0, bounds.width] }
+          scale: null
         },
         x2: {
           field: 'x2',
@@ -326,7 +339,7 @@ export class VegaLiteGenerator {
           field: 'y',
           type: 'quantitative',
           axis: null,
-          scale: { domain: [bounds.height, 0] }  // Invert Y domain to match top-down layout
+          scale: null
         }
       }
     };

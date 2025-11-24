@@ -8,6 +8,7 @@ export interface TextStyle {
   textDecoration?: 'none' | 'underline' | 'line-through';
   fontSize?: number;
   verticalOffset?: number; // Negative for superscript, positive for subscript
+  href?: string | undefined; // URL for hyperlinks
   // List context properties
   isListItem?: boolean;
   listNestingLevel?: number;
@@ -73,6 +74,7 @@ export interface VegaLiteLayerData {
   y: number;
   width?: number;
   height?: number;
+  href?: string | undefined;
 }
 
 /**
@@ -116,13 +118,13 @@ export interface VegaLiteTextEncoding {
     field: 'x';
     type: 'quantitative';
     axis: null;
-    scale: { domain: [number, number] };
+    scale: null | { domain: number[] };
   };
   y: {
     field: 'y';
     type: 'quantitative';
     axis: null;
-    scale: { domain: [number, number] };
+    scale: null | { domain: number[] };
   };
   text: {
     field: 'text';
@@ -160,13 +162,13 @@ export interface VegaLiteEncoding {
     field: string;
     type: 'quantitative';
     axis: null;
-    scale: { domain: number[] };
+    scale: null | { domain: number[] };
   };
   y: {
     field: string;
     type: 'quantitative';
     axis: null;
-    scale: { domain: number[] };
+    scale: null | { domain: number[] };
   };
   text: {
     field: string;

@@ -252,13 +252,13 @@ describe('VegaLiteGenerator', () => {
         field: 'x',
         type: 'quantitative',
         axis: null,
-        scale: { domain: [0, 200] }
+        scale: null
       });
       expect(layer.encoding.y).toEqual({
         field: 'y',
         type: 'quantitative',
         axis: null,
-        scale: { domain: [50, 0] }  // Inverted Y domain for top-down layout
+        scale: null
       });
       expect(layer.encoding.text).toEqual({
         field: 'text',
