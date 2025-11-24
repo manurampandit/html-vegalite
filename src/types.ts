@@ -156,18 +156,18 @@ export interface VegaLiteRuleEncoding {
  * Vega-Lite encoding configuration
  */
 export interface VegaLiteEncoding {
-  x: {
-    field: string;
-    type: 'quantitative';
-    axis: null;
-    scale: { domain: number[] };
-  };
-  y: {
-    field: string;
-    type: 'quantitative';
-    axis: null;
-    scale: { domain: number[] };
-  };
+    x: {
+      field: string;
+      type: 'quantitative';
+      axis: null;
+      scale: null | { domain: number[] };
+    };
+    y: {
+      field: string;
+      type: 'quantitative';
+      axis: null;
+      scale: null | { domain: number[] };
+    };
   text: {
     field: string;
     type: 'nominal';

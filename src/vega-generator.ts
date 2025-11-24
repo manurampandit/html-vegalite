@@ -154,13 +154,13 @@ export class VegaLiteGenerator {
           field: 'x',
           type: 'quantitative',
           axis: null,
-          scale: { domain: [0, bounds.width] }
+          scale: null
         },
         y: {
           field: 'y',
           type: 'quantitative',
           axis: null,
-          scale: { domain: [bounds.height, 0] }  // Invert Y domain to match top-down layout
+          scale: null
         },
         text: {
           field: 'text',
@@ -265,7 +265,7 @@ export class VegaLiteGenerator {
           field: 'x',
           type: 'quantitative',
           axis: null,
-          scale: { domain: [0, bounds.width] }
+          scale: null
         },
         x2: {
           field: 'x2',
@@ -275,7 +275,7 @@ export class VegaLiteGenerator {
           field: 'y',
           type: 'quantitative',
           axis: null,
-          scale: { domain: [bounds.height, 0] }  // Invert Y domain to match top-down layout
+          scale: null
         }
       }
     };
@@ -316,7 +316,7 @@ export class VegaLiteGenerator {
           field: 'x',
           type: 'quantitative',
           axis: null,
-          scale: { domain: [0, bounds.width] }
+          scale: null
         },
         x2: {
           field: 'x2',
@@ -326,7 +326,7 @@ export class VegaLiteGenerator {
           field: 'y',
           type: 'quantitative',
           axis: null,
-          scale: { domain: [bounds.height, 0] }  // Invert Y domain to match top-down layout
+          scale: null
         }
       }
     };
