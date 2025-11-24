@@ -6,7 +6,6 @@ import { StyleHelpers } from '../../helpers/style';
  * Strategy for span tags with style attributes: <span style="...">
  * 
  * This strategy parses CSS style attributes and applies them to text.
- * Uses the default parse() implementation from BaseTagStrategy.
  */
 export class SpanTagStrategy extends BaseTagStrategy {
   public applyStyle(currentStyle: TextStyle, attributes: string, tagName?: string): TextStyle {

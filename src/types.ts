@@ -116,13 +116,13 @@ export interface VegaLiteTextEncoding {
     field: 'x';
     type: 'quantitative';
     axis: null;
-    scale: { domain: [number, number] };
+    scale: null | { domain: number[] };
   };
   y: {
     field: 'y';
     type: 'quantitative';
     axis: null;
-    scale: { domain: [number, number] };
+    scale: null | { domain: number[] };
   };
   text: {
     field: 'text';

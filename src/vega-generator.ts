@@ -201,13 +201,13 @@ export class VegaLiteGenerator {
             field: 'x',
             type: 'quantitative',
             axis: null,
-            scale: { domain: [0, 200] }
+            scale: null
           },
           y: {
             field: 'y',
             type: 'quantitative',
             axis: null,
-            scale: { domain: [0, 50] }
+            scale: null
           },
           text: {
             field: 'text',

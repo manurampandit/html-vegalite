@@ -5,7 +5,6 @@ import { BaseTagStrategy } from '../interfaces/base-tag-strategy';
  * Strategy for hyperlink tags: <a href="...">
  * 
  * This strategy applies link styling (color and underline) and validates href attributes.
- * Uses the default parse() implementation from BaseTagStrategy.
  */
 export class HyperlinkTagStrategy extends BaseTagStrategy {
   public applyStyle(currentStyle: TextStyle, attributes: string, tagName?: string): TextStyle {
